@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Recommender</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="max-w-xl w-full bg-white p-6 rounded-xl shadow-md">
+    <h1 class="text-2xl font-bold text-center mb-4">🎮 Какую игру тебе стоит попробовать?</h1>
+
+    <div id="quiz"></div>
+    <div id="result" class="hidden mt-6"></div>
+    <button id="startBtn" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full">Начать тест</button>
+  </div>
+
+  <script>
+    const questions = [
+      {
+        text: "Как ты хочешь себя чувствовать в игре?",
+        options: [
+          { text: "Расслабленным и счастливым", category: "Открытый мир", points: 2 },
+          { text: "Испуганным и на пределе", category: "Хоррор", points: 2 },
+          { text: "Героическим и вдохновлённым", category: "Экшен", points: 2 }
+        ]
+      },
+      {
+        text: "Какая графика тебе ближе?",
+        options: [
+          { text: "Фэнтезийная", category: "Фэнтези", points: 2 },
+          { text: "Современный реализм", category: "РПГ", points: 2 },
+          { text: "Сюрреализм или арт", category: "Головоломка", points: 2 }
+        ]
+      }
+    ];
+
+    const categoryScores = {};
+    let currentIndex = 0;
+
+    const quizEl = document.getElementById('quiz');
+    const resultEl = document.getElementById('result');
+    const startBtn = document.getElementById('startBtn');
+
+    function showQuestion() {
+      const q = questions[currentIndex];
+      quizEl.innerHTML = `<h2 class="text-lg font-semibold mb-2">${q.text}</h2>` +
+        q.options.map((opt, i) =>
+          `<button class="block w-full text-left px-4 py-2 mt-2 bg-gray-200 rounded hover:bg-gray-300" onclick="answer(${i})">${opt.text}</button>`
+        ).join('');
+    }
+
+    function answer(i) {
+      const { category, points } = questions[currentIndex].options[i];
+      categoryScores[category] = (categoryScores[category] || 0) + points;
+      currentIndex++;
+      if (currentIndex < questions.length) {
+        showQuestion();
+      } else {
+        getRecommendations();
+      }
+    }
+
+    async function getRecommendations() {
+      quizEl.innerHTML = '';
+      resultEl.classList.remove('hidden');
+      resultEl.innerHTML = '<p class="mb-2">🔎 Подбираем игры...</p>';
+
+      const topCategories = Object.entries(categoryScores)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([cat]) => cat);
+
+      const gameList = [];
+      for (const cat of topCategories) {
+          const url = `https://api.rawg.io/api/games?key=440be6fa4044405b88acf099792abaeb&genres=${encodeURIComponent(cat)}&page_size=3`;
+        try {
+          const res = await fetch(url);
+          const data = await res.json();
+          data.results.forEach(game => {
+            gameList.push({ name: game.name, url: game.slug });
+          });
+        } catch (err) {
+          gameList.push({ name: `Ошибка загрузки игр для категории: ${cat}`, url: '#' });
+        }
+      }
+
+      resultEl.innerHTML = '<h3 class="font-bold mb-2">🎯 Рекомендуемые игры:</h3>' +
+        '<ul class="list-disc pl-6">' +
+        gameList.map(g => `<li><a class="text-blue-600 hover:underline" target="_blank" href="https://rawg.io/games/${g.url}">${g.name}</a></li>`).join('') +
+        '</ul>';
+    }
+
+    startBtn.onclick = () => {
+      startBtn.classList.add('hidden');
+      showQuestion();
+    }
+  </script>
+</body>
+</html>
